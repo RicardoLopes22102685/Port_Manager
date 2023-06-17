@@ -4,8 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define MSG_ERRO "ERROR: invalid command\n>"
-#define MSG_SCS "SUCCESS: operation concluded\n>"
+#define MSG_ERRO "ERROR: invalid command"
+#define MSG_SCS "SUCCESS: operation concluded"
 #define MENU "+---- MENU\n" \
              "| move\t\t[-g grua] [-d ponto] [-p pilha] [-D ponto] [-P pilha] [-n numero_de_contentores]\n" \
              "| show\t\t[-d ponto] [-e embarc]\n" \
@@ -28,7 +28,7 @@ typedef struct Container {
 
 typedef struct {
     int dock_Number;
-    int ship_Name;
+    char ship_Name[15];
     Container *piles;
 } Ship;
 
@@ -42,10 +42,15 @@ short check_Ship_name(char *name);
 
 short check_Container(Container);
 
+int count_Words(char *string);
+
 void printDockStatus(Dock docks[]);
 
-void addContainer(Container **pile, char* container_ID);
-void removeContainer(Container** pile);
+void addContainer(Container **pile, char *container_ID);
+
+void removeContainer(Container **pile);
+
+void navigate(Dock docks[], int num_Docks, char *ship_ID, int destination_Dock);
 
 int main(int argc, char *argv[]) {
     const char *known_commands[] = {"quit", "move", "show", "where", "navigate", "load", "weight", "help", "save"};
@@ -64,8 +69,9 @@ int main(int argc, char *argv[]) {
         /*struct container temp = {"FF3", 500};
         printf("%d", check_Container(temp)); */
         fgets(command, sizeof(command), stdin); //Verificar null no Pandora
-        sscanf(command, "%s %*s", command_name);
-        for (int i = 0; i < (int) (sizeof(known_commands) / sizeof(known_commands[0])); i++) {
+        sscanf(command, "%s", command_name);
+        for (int i = 0;
+             i < (int) (sizeof(known_commands) / sizeof(known_commands[0])); i++) { //Checks if main command exists
             if (strcmp(command_name, known_commands[i]) == 0) {
                 is_command_valid = 1;
                 break;
@@ -76,8 +82,36 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if (strcmp(command_name, "navigate") == 0) {
-            printf("GOOD\n>");
+            if (count_Words(command) == 5) {
+                char ship_ID[5], dock[5];
+                /* sscanf(command, "%*s %s", command_one);
+                 sscanf(command, "%*s %*s %*s %s", command_two);
+                 if (strcmp(command_one, "-e") == 0){
+                     sscanf(command, "%*s %*s %s", ship_ID);
+                     printf("Valor de -e: %s", ship_ID);
+                }
+                 */
+                char *e_position = strstr(command, "-e");
+                char *d_position = strstr(command, "-d");
+                if (e_position != NULL && d_position != NULL) {
+                    if (e_position < d_position) {
+                        sscanf(e_position, "-e %s -d %s", ship_ID, dock);
+                    } else {
+                        sscanf(d_position, "-d %s -e %s", dock, ship_ID);
+                    }
+                    navigate(docks, MAX_DOCKS, ship_ID,
+                             atoi(dock)); //Verificar Pandora se atoi devolve 0 por falha de conversão
+                } else {
+                    printf(MSG_ERRO);
+                    continue;
+                }
+            } else {
+                printf(MSG_ERRO);
+            }
+        } else if (strcmp(command_name, "where") == 0) {
+            puts("TODO");
         }
+        if ((strcmp(command_name, "quit") != 0)) printf("\n>");
 
     } while (strcmp(command_name, "quit") != 0);
 
@@ -117,14 +151,14 @@ void printDockStatus(Dock docks[]) {
     for (int i = 0; i < MAX_DOCKS; i++) {
         printf("Dock %d: ", docks[i].dock_Number);
         if (docks[i].occupied) {
-            printf("Ship %d is docked\n", docks[i].ship.ship_Name);
+            printf("Ship %s is docked\n", docks[i].ship.ship_Name);
         } else {
             printf("No ship is docked\n");
         }
     }
 }
 
-void addContainer(Container **pile, char* container_ID) {
+void addContainer(Container **pile, char *container_ID) {
     Container *newContainer = (Container *) malloc(sizeof(Container));
     strcpy(newContainer->id, container_ID);
     newContainer->next = NULL;
@@ -139,13 +173,85 @@ void addContainer(Container **pile, char* container_ID) {
     }
 }
 
-void removeContainer(Container** pile) {
+void removeContainer(Container **pile) {
+    Container *temp;
     if (*pile == NULL) {
         printf("The pile is already empty.\n");
         return;
     }
-
-    Container* temp = *pile;
+    temp = *pile;
     *pile = (*pile)->next;
     free(temp);
 }
+
+int count_Words(char *string) {
+    int count = 0;
+    int len = (int) strlen(string);
+    int i = 0;
+
+    // Skip leading white spaces
+    while (string[i] == ' ')
+        i++;
+    for (; i < len; i++) {
+        // If current character is a whitespace
+        // and the next character is not a whitespace or end of the string
+        if (string[i] == ' ' && (string[i + 1] != ' ' && string[i + 1] != '\0')) {
+            count++;
+        }
+    }
+    // Add 1 for the last word
+    count++;
+    return count;
+}
+
+void navigate(Dock docks[], int numDocks, char* shipId, int destinationDock) {
+    Ship* existingShip = NULL;
+    int currentDock = -1;
+
+    for (int i = 0; i < numDocks; i++) {
+        if (docks[i].occupied && strcmp(docks[i].ship.ship_Name, shipId) == 0) {
+            existingShip = &(docks[i].ship);
+            currentDock = i;
+            break;
+        }
+    }
+
+    if (existingShip != NULL) {//Ship existe
+        if (destinationDock < 0 || destinationDock > 9) {
+            printf(MSG_ERRO);
+            return;
+        }
+        if (currentDock == destinationDock) {
+            printf(MSG_ERRO);
+            return;
+        }
+        if (docks[destinationDock].occupied) {
+            printf(MSG_ERRO);
+            return;
+        }
+        docks[currentDock].occupied = 0;
+        docks[destinationDock].occupied = 1;
+        docks[destinationDock].ship = *existingShip;
+        existingShip->dock_Number = destinationDock;
+        printf(MSG_SCS);
+    } else { // Ship não existe, criar Ship
+        Ship newShip;
+        if (destinationDock < 0 || destinationDock > 9) {
+            printf(MSG_ERRO);
+            return;
+        }
+        if (docks[destinationDock].occupied) {
+            printf(MSG_ERRO);
+            return;
+        }
+        newShip.dock_Number = destinationDock;
+        strncpy(newShip.ship_Name, shipId, sizeof(newShip.ship_Name) - 1);
+        newShip.ship_Name[sizeof(newShip.ship_Name) - 1] = '\0'; // Ensure null-termination
+        newShip.piles = NULL;
+        docks[destinationDock].occupied = 1;
+        docks[destinationDock].ship = newShip;
+        printf(MSG_SCS);
+    }
+}
+
+
