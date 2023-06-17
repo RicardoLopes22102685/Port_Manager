@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define MSG_ERRO "ERROR: invalid command\n>"
 #define MSG_SCS "SUCCESS: operation concluded\n>"
@@ -17,21 +18,45 @@
              "| quit\n" \
              "+----\n>"
 
-struct container {
+#define MAX_DOCKS 10
+
+typedef struct Container {
     char id[50];
     int weight;
-};
+    struct Container *next;
+} Container;
 
-void menu(void);
+typedef struct {
+    int dock_Number;
+    int ship_Name;
+    Container *piles;
+} Ship;
+
+typedef struct {
+    int dock_Number;
+    short occupied;
+    Ship ship;
+} Dock;
 
 short check_Ship_name(char *name);
 
-short check_Container(struct container);
+short check_Container(Container);
+
+void printDockStatus(Dock docks[]);
+
+void addContainer(Container **pile, char* container_ID);
+void removeContainer(Container** pile);
 
 int main(int argc, char *argv[]) {
     const char *known_commands[] = {"quit", "move", "show", "where", "navigate", "load", "weight", "help", "save"};
     char command[50], command_name[10];
     short is_command_valid;
+
+    Dock docks[MAX_DOCKS];
+    for (int i = 0; i < MAX_DOCKS; i++) { //Initialize docks
+        docks[i].dock_Number = i;
+        docks[i].occupied = 0;
+    }
 
     printf(MENU);
     do {
@@ -59,21 +84,6 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void menu(void) {
-    printf("+---- MENU\n"
-           "| move\t\t[-g grua] [-d ponto] [-p pilha] [-D ponto] [-P pilha] [-n numero_de_contentores]\n"
-           "| show\t\t[-d ponto] [-e embarc]\n"
-           "| where\t\t[embarc]\n"
-           "| navigate\t[-e embarc] [-d ponto]\n"
-           "| load\t\t[-e embarc] [-p pilha] [-c contentor:peso]\n"
-           "| weight\t[embarc]\n"
-           "| save\t\t[filename]\n"
-           "| help\n"
-           "| quit\n"
-           "+----\n"
-           ">");
-}
-
 short check_Ship_name(char *name) {
     if (strlen(name) != 4) {
         return 0;
@@ -86,7 +96,7 @@ short check_Ship_name(char *name) {
     return 1;
 }
 
-short check_Container(struct container container_to_check) {
+short check_Container(Container container_to_check) {
     if (strlen(container_to_check.id) != 3) {
         return 0;
     }
@@ -100,4 +110,42 @@ short check_Container(struct container container_to_check) {
         return 0;
     }
     return 1;
+}
+
+void printDockStatus(Dock docks[]) {
+    printf("Dock Status:\n");
+    for (int i = 0; i < MAX_DOCKS; i++) {
+        printf("Dock %d: ", docks[i].dock_Number);
+        if (docks[i].occupied) {
+            printf("Ship %d is docked\n", docks[i].ship.ship_Name);
+        } else {
+            printf("No ship is docked\n");
+        }
+    }
+}
+
+void addContainer(Container **pile, char* container_ID) {
+    Container *newContainer = (Container *) malloc(sizeof(Container));
+    strcpy(newContainer->id, container_ID);
+    newContainer->next = NULL;
+    if (*pile == NULL) {
+        *pile = newContainer;
+    } else {
+        Container *current = *pile;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = newContainer;
+    }
+}
+
+void removeContainer(Container** pile) {
+    if (*pile == NULL) {
+        printf("The pile is already empty.\n");
+        return;
+    }
+
+    Container* temp = *pile;
+    *pile = (*pile)->next;
+    free(temp);
 }
