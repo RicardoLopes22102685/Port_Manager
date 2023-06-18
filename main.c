@@ -52,6 +52,8 @@ void removeContainer(Container **pile);
 
 void navigate(Dock docks[], int num_Docks, char *ship_ID, int destination_Dock);
 
+Ship *find_Ship(Dock docks[], int num_Docks, char *ship_ID);
+
 int main(int argc, char *argv[]) {
     const char *known_commands[] = {"quit", "move", "show", "where", "navigate", "load", "weight", "help", "save"};
     char command[50], command_name[10];
@@ -83,7 +85,7 @@ int main(int argc, char *argv[]) {
         }
         if (strcmp(command_name, "navigate") == 0) {
             if (count_Words(command) == 5) {
-                char ship_ID[5], dock[5];
+                char ship_ID[10], dock[5];
                 /* sscanf(command, "%*s %s", command_one);
                  sscanf(command, "%*s %*s %*s %s", command_two);
                  if (strcmp(command_one, "-e") == 0){
@@ -109,11 +111,20 @@ int main(int argc, char *argv[]) {
                 printf(MSG_ERRO);
             }
         } else if (strcmp(command_name, "where") == 0) {
-            puts("TODO");
+            if (count_Words(command) == 2) {
+                char ship_ID[10];
+                Ship *ship = NULL;
+                sscanf(command, "%*s %s", ship_ID);
+                ship = find_Ship(docks, MAX_DOCKS, ship_ID);
+                if (ship != NULL && check_Ship_name(ship_ID)) {
+                    printf("d%d %s", ship->dock_Number, ship->ship_Name);
+                }
+            } else printf(MSG_ERRO);
         }
         if ((strcmp(command_name, "quit") != 0)) printf("\n>");
-
-    } while (strcmp(command_name, "quit") != 0);
+    } while (
+            strcmp(command_name,
+                   "quit") != 0);
 
     return 0;
 }
@@ -204,12 +215,15 @@ int count_Words(char *string) {
     return count;
 }
 
-void navigate(Dock docks[], int numDocks, char* shipId, int destinationDock) {
-    Ship* existingShip = NULL;
+void navigate(Dock docks[], int num_Docks, char *ship_ID, int destination_Dock) {
+    Ship *existingShip = NULL;
     int currentDock = -1;
-
-    for (int i = 0; i < numDocks; i++) {
-        if (docks[i].occupied && strcmp(docks[i].ship.ship_Name, shipId) == 0) {
+    if (!check_Ship_name(ship_ID)) {
+        printf(MSG_ERRO);
+        return;
+    }
+    for (int i = 0; i < num_Docks; i++) {
+        if (docks[i].occupied && strcmp(docks[i].ship.ship_Name, ship_ID) == 0) {
             existingShip = &(docks[i].ship);
             currentDock = i;
             break;
@@ -217,41 +231,50 @@ void navigate(Dock docks[], int numDocks, char* shipId, int destinationDock) {
     }
 
     if (existingShip != NULL) {//Ship existe
-        if (destinationDock < 0 || destinationDock > 9) {
+        if (destination_Dock < 0 || destination_Dock > 9) {
             printf(MSG_ERRO);
             return;
         }
-        if (currentDock == destinationDock) {
+        if (currentDock == destination_Dock) {
             printf(MSG_ERRO);
             return;
         }
-        if (docks[destinationDock].occupied) {
+        if (docks[destination_Dock].occupied) {
             printf(MSG_ERRO);
             return;
         }
         docks[currentDock].occupied = 0;
-        docks[destinationDock].occupied = 1;
-        docks[destinationDock].ship = *existingShip;
-        existingShip->dock_Number = destinationDock;
+        docks[destination_Dock].occupied = 1;
+        existingShip->dock_Number = destination_Dock;
+        docks[destination_Dock].ship = *existingShip;
         printf(MSG_SCS);
     } else { // Ship não existe, criar Ship
         Ship newShip;
-        if (destinationDock < 0 || destinationDock > 9) {
+        if (destination_Dock < 0 || destination_Dock > 9) {
             printf(MSG_ERRO);
             return;
         }
-        if (docks[destinationDock].occupied) {
+        if (docks[destination_Dock].occupied) {
             printf(MSG_ERRO);
             return;
         }
-        newShip.dock_Number = destinationDock;
-        strncpy(newShip.ship_Name, shipId, sizeof(newShip.ship_Name) - 1);
+        newShip.dock_Number = destination_Dock;
+        strncpy(newShip.ship_Name, ship_ID, sizeof(newShip.ship_Name) - 1);
         newShip.ship_Name[sizeof(newShip.ship_Name) - 1] = '\0'; // Ensure null-termination
         newShip.piles = NULL;
-        docks[destinationDock].occupied = 1;
-        docks[destinationDock].ship = newShip;
+        docks[destination_Dock].occupied = 1;
+        docks[destination_Dock].ship = newShip;
         printf(MSG_SCS);
     }
+}
+
+Ship *find_Ship(Dock docks[], int num_Docks, char *ship_ID) {
+    for (int i = 0; i < num_Docks; i++) {
+        if (docks[i].occupied && strcmp(docks[i].ship.ship_Name, ship_ID) == 0) {
+            return &(docks[i].ship);
+        }
+    }
+    return NULL;
 }
 
 
